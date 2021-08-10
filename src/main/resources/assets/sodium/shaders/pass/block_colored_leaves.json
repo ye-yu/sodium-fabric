@@ -9,7 +9,7 @@
       "source": "sodium:shaders/block_layer_generic.fsh",
       "constants": {
         "ALPHA_CUTOFF": "0.5",
-        "COLOR_MULTIPLIER": "vec4(1.0, 0.75, 0.8, 1.0)"
+        "COLOR_MULTIPLIER": "vec3(1.0, 0.75, 0.8)"
       }
     }
   }

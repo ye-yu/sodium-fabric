@@ -30,10 +30,12 @@ void main() {
     vec4 diffuseColor = (sampleBlockTex * sampleLightTex);
 
 #ifdef COLOR_MULTIPLIER
-    diffuseColor *= COLOR_MULTIPLIER;
+    diffuseColor.rgb *= COLOR_MULTIPLIER;
 #else
-    diffuseColor *= v_Color;
+    diffuseColor.rgb *= v_Color.rgb;
 #endif
+
+    diffuseColor.rgb *= v_Color.a;
 
     fragColor = _linearFog(diffuseColor, v_FragDistance, u_FogColor, u_FogStart, u_FogEnd);
 }
