@@ -1,5 +1,6 @@
 package me.jellysquid.mods.sodium.client.gl.shader;
 
+import me.jellysquid.mods.sodium.client.resource.ResourceResolver;
 import net.minecraft.util.Identifier;
 
 import java.io.BufferedReader;
@@ -14,21 +15,21 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 public class ShaderParser {
-    public static String parseShader(String src, ShaderConstants constants) {
-        List<String> lines = parseShader(src);
+    public static String parseShader(ResourceResolver resolver, String src, ShaderConstants constants) {
+        List<String> lines = parseShader(resolver, src);
         lines.addAll(1, constants.createDefines());
 
         return String.join("\n", lines);
     }
 
-    public static List<String> parseShader(String src) {
+    public static List<String> parseShader(ResourceResolver resolver, String src) {
         List<String> builder = new LinkedList<>();
         String line;
 
         try (BufferedReader reader = new BufferedReader(new StringReader(src))) {
             while ((line = reader.readLine()) != null) {
                 if (line.startsWith("#import")) {
-                    builder.addAll(resolveImport(line));
+                    builder.addAll(resolveImport(resolver, line));
                 } else {
                     builder.add(line);
                 }
@@ -42,7 +43,7 @@ public class ShaderParser {
 
     private static final Pattern IMPORT_PATTERN = Pattern.compile("#import <(?<namespace>.*):(?<path>.*)>");
 
-    private static List<String> resolveImport(String line) {
+    private static List<String> resolveImport(ResourceResolver resolver, String line) {
         Matcher matcher = IMPORT_PATTERN.matcher(line);
 
         if (!matcher.matches()) {
@@ -53,8 +54,8 @@ public class ShaderParser {
         String path = matcher.group("path");
 
         Identifier identifier = new Identifier(namespace, path);
-        String source = ShaderLoader.getShaderSource(identifier);
+        String source = ShaderLoader.getShaderSource(resolver, identifier);
 
-        return ShaderParser.parseShader(source);
+        return ShaderParser.parseShader(resolver, source);
     }
 }

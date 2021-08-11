@@ -11,6 +11,7 @@ import me.jellysquid.mods.sodium.client.render.chunk.shader.ChunkFogMode;
 import me.jellysquid.mods.sodium.client.render.chunk.shader.ChunkShaderInterface;
 import me.jellysquid.mods.sodium.client.render.chunk.shader.ChunkShaderBindingPoints;
 import me.jellysquid.mods.sodium.client.render.chunk.shader.ChunkShaderOptions;
+import me.jellysquid.mods.sodium.client.resource.ResourceResolver;
 import net.minecraft.util.Identifier;
 
 import java.util.Map;
@@ -24,9 +25,11 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
     protected final RenderDevice device;
 
     protected GlProgram<ChunkShaderInterface> activeProgram;
+    protected ResourceResolver resourceResolver;
 
-    public ShaderChunkRenderer(RenderDevice device, ChunkVertexType vertexType) {
+    public ShaderChunkRenderer(RenderDevice device, ResourceResolver resourceResolver, ChunkVertexType vertexType) {
         this.device = device;
+        this.resourceResolver = resourceResolver;
         this.vertexType = vertexType;
         this.vertexFormat = vertexType.getCustomVertexFormat();
     }
@@ -35,15 +38,15 @@ public abstract class ShaderChunkRenderer implements ChunkRenderer {
         GlProgram<ChunkShaderInterface> program = this.programs.get(options);
 
         if (program == null) {
-            this.programs.put(options, program = this.createShader(options));
+            this.programs.put(options, program = this.createShader(this.resourceResolver, options));
         }
 
         return program;
     }
 
-    private GlProgram<ChunkShaderInterface> createShader(ChunkShaderOptions options) {
-        GlShader vertShader = ShaderLoader.loadShader(ShaderType.VERTEX, options.getVertexShaderName(), options.getVertexShaderConstants());
-        GlShader fragShader = ShaderLoader.loadShader(ShaderType.FRAGMENT, options.getFragmentShaderName(), options.getFragmentShaderConstants());
+    private GlProgram<ChunkShaderInterface> createShader(ResourceResolver resolver, ChunkShaderOptions options) {
+        GlShader vertShader = ShaderLoader.loadShader(resolver, ShaderType.VERTEX, options.getVertexShaderName(), options.getVertexShaderConstants());
+        GlShader fragShader = ShaderLoader.loadShader(resolver, ShaderType.FRAGMENT, options.getFragmentShaderName(), options.getFragmentShaderConstants());
 
         try {
             return GlProgram.builder(new Identifier("sodium", "chunk_shader"))

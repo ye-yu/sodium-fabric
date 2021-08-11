@@ -4,7 +4,8 @@ import com.google.gson.Gson;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 import me.jellysquid.mods.sodium.client.SodiumClientMod;
 import me.jellysquid.mods.sodium.client.gl.shader.ShaderConstants;
-import me.jellysquid.mods.sodium.client.resource.ResourceLoader;
+import me.jellysquid.mods.sodium.client.resource.ResourceProvider;
+import me.jellysquid.mods.sodium.client.resource.ResourceResolver;
 import me.jellysquid.mods.sodium.client.resource.shader.json.BlockMapJson;
 import me.jellysquid.mods.sodium.client.resource.shader.json.RenderPassJson;
 import me.jellysquid.mods.sodium.client.resource.shader.json.ShaderJson;
@@ -14,12 +15,10 @@ import net.minecraft.client.render.RenderLayers;
 import net.minecraft.fluid.Fluid;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.registry.Registry;
-import org.apache.commons.io.FilenameUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -70,8 +69,8 @@ public class BlockRenderPassManager {
      * Creates a set of render pass mappings to vanilla render layers which closely mirrors the rendering
      * behavior of vanilla.
      */
-    public static BlockRenderPassManager create() {
-        RenderPassCache cache = new RenderPassCache();
+    public static BlockRenderPassManager create(ResourceResolver resolver) {
+        RenderPassCache cache = new RenderPassCache(resolver);
 
         BlockRenderPass cutoutMipped = cache.get(new Identifier("sodium", "block_cutout_mipped"));
         BlockRenderPass cutout = cache.get(new Identifier("sodium", "block_cutout"));
@@ -103,7 +102,9 @@ public class BlockRenderPassManager {
             blocks.put(block, pass);
         }
 
-        tryLoadMappings(new Identifier("sodium", "maps/block_map.json"), cache, blocks, fluids);
+        for (ResourceProvider loader : resolver.getResourceProviders()) {
+            tryLoadMappings(loader, cache, blocks, fluids);
+        }
 
         for (Map.Entry<Fluid, RenderLayer> entry : RenderLayers.FLUIDS.entrySet()) {
             Fluid fluid = entry.getKey();
@@ -125,8 +126,8 @@ public class BlockRenderPassManager {
         return new BlockRenderPassManager(blocks, fluids, solid);
     }
 
-    private static void tryLoadMappings(Identifier id, RenderPassCache cache, Map<Block, BlockRenderPass> blocks, Map<Fluid, BlockRenderPass> fluids) {
-        BlockMapJson json = tryLoadBlockMapJson(id);
+    private static void tryLoadMappings(ResourceProvider loader, RenderPassCache cache, Map<Block, BlockRenderPass> blocks, Map<Fluid, BlockRenderPass> fluids) {
+        BlockMapJson json = tryLoadBlockMapJson(loader, "maps/block_map.json");
 
         if (json == null) {
             return;
@@ -144,8 +145,8 @@ public class BlockRenderPassManager {
         }
     }
 
-    private static BlockMapJson tryLoadBlockMapJson(Identifier id) {
-        try (InputStream in = ResourceLoader.EMBEDDED.open(id)) {
+    private static BlockMapJson tryLoadBlockMapJson(ResourceProvider loader, String path) {
+        try (InputStream in = loader.open(path)) {
             if (in == null) {
                 return null;
             }
@@ -195,16 +196,21 @@ public class BlockRenderPassManager {
 
     private static class RenderPassCache {
         private final Map<Identifier, BlockRenderPass> cache = new Reference2ObjectOpenHashMap<>();
+        private final ResourceResolver resolver;
 
-        public BlockRenderPass get(Identifier id) {
-            return this.cache.computeIfAbsent(id, RenderPassCache::load);
+        private RenderPassCache(ResourceResolver resolver) {
+            this.resolver = resolver;
         }
 
-        private static BlockRenderPass load(Identifier name) {
+        public BlockRenderPass get(Identifier id) {
+            return this.cache.computeIfAbsent(id, this::load);
+        }
+
+        private BlockRenderPass load(Identifier name) {
             RenderPassJson json;
             Identifier path = new Identifier(name.getNamespace(), "shaders/pass/" + name.getPath() + ".json");
 
-            try (InputStream in = ResourceLoader.EMBEDDED.open(path)) {
+            try (InputStream in = this.resolver.open(path)) {
                 json = GSON.fromJson(new InputStreamReader(in), RenderPassJson.class);
             } catch (IOException e) {
                 throw new RuntimeException("Failed to read render pass specification", e);

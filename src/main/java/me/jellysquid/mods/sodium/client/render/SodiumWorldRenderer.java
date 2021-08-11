@@ -9,6 +9,8 @@ import me.jellysquid.mods.sodium.client.render.chunk.passes.BlockRenderPass;
 import me.jellysquid.mods.sodium.client.render.chunk.passes.BlockRenderPassManager;
 import me.jellysquid.mods.sodium.client.render.chunk.region.RenderRegion;
 import me.jellysquid.mods.sodium.client.render.pipeline.context.ChunkRenderCacheShared;
+import me.jellysquid.mods.sodium.client.resource.ResourceResolver;
+import me.jellysquid.mods.sodium.client.resource.shader.ShaderPackManager;
 import me.jellysquid.mods.sodium.client.util.NativeBuffer;
 import me.jellysquid.mods.sodium.client.util.math.FrustumExtended;
 import me.jellysquid.mods.sodium.client.world.ChunkStatusListener;
@@ -228,9 +230,12 @@ public class SodiumWorldRenderer implements ChunkStatusListener {
 
         this.renderDistance = this.client.options.viewDistance;
 
-        this.renderPassManager = BlockRenderPassManager.create();
+        ShaderPackManager shaderPackManager = SodiumClientMod.getShaderPackManager();
+        ResourceResolver resourceResolver = shaderPackManager.createResourceResolver();
 
-        this.renderSectionManager = new RenderSectionManager(this, this.renderPassManager, this.world, this.renderDistance);
+        this.renderPassManager = BlockRenderPassManager.create(resourceResolver);
+
+        this.renderSectionManager = new RenderSectionManager(this, resourceResolver, this.renderPassManager, this.world, this.renderDistance);
         this.renderSectionManager.loadChunks();
     }
 

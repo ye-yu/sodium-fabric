@@ -22,6 +22,7 @@ import me.jellysquid.mods.sodium.client.render.chunk.passes.BlockRenderPass;
 import me.jellysquid.mods.sodium.client.render.chunk.region.RenderRegion;
 import me.jellysquid.mods.sodium.client.render.chunk.shader.ChunkShaderBindingPoints;
 import me.jellysquid.mods.sodium.client.render.chunk.shader.ChunkShaderInterface;
+import me.jellysquid.mods.sodium.client.resource.ResourceResolver;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.Matrix4f;
 import org.lwjgl.system.MemoryStack;
@@ -36,8 +37,8 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
 
     private final GlMutableBuffer chunkInfoBuffer;
 
-    public RegionChunkRenderer(RenderDevice device, ChunkVertexType vertexType) {
-        super(device, vertexType);
+    public RegionChunkRenderer(RenderDevice device, ResourceResolver resourceResolver, ChunkVertexType vertexType) {
+        super(device, resourceResolver, vertexType);
 
         this.vertexAttributeBindings = new GlVertexAttributeBinding[] {
                 new GlVertexAttributeBinding(ChunkShaderBindingPoints.ATTRIBUTE_POSITION_ID,

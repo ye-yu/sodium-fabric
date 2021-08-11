@@ -1,6 +1,7 @@
 package me.jellysquid.mods.sodium.client;
 
 import me.jellysquid.mods.sodium.client.gui.SodiumGameOptions;
+import me.jellysquid.mods.sodium.client.resource.shader.ShaderPackManager;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
@@ -12,6 +13,11 @@ public class SodiumClientMod implements ClientModInitializer {
     private static Logger LOGGER;
 
     private static String MOD_VERSION;
+    private static ShaderPackManager SHADER_PACK_MANAGER;
+
+    public static ShaderPackManager getShaderPackManager() {
+        return SHADER_PACK_MANAGER;
+    }
 
     @Override
     public void onInitializeClient() {
@@ -22,6 +28,8 @@ public class SodiumClientMod implements ClientModInitializer {
         MOD_VERSION = mod.getMetadata()
                 .getVersion()
                 .getFriendlyString();
+
+        SHADER_PACK_MANAGER = ShaderPackManager.defaultLocation();
     }
 
     public static SodiumGameOptions options() {
