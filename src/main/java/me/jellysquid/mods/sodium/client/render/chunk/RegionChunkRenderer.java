@@ -1,7 +1,6 @@
 package me.jellysquid.mods.sodium.client.render.chunk;
 
 import com.google.common.collect.Lists;
-import com.mojang.blaze3d.systems.RenderSystem;
 import me.jellysquid.mods.sodium.client.gl.attribute.GlVertexAttributeBinding;
 import me.jellysquid.mods.sodium.client.gl.buffer.GlBufferUsage;
 import me.jellysquid.mods.sodium.client.gl.buffer.GlMutableBuffer;
@@ -19,10 +18,12 @@ import me.jellysquid.mods.sodium.client.model.vertex.type.ChunkVertexType;
 import me.jellysquid.mods.sodium.client.render.chunk.data.ChunkRenderBounds;
 import me.jellysquid.mods.sodium.client.render.chunk.format.ChunkMeshAttribute;
 import me.jellysquid.mods.sodium.client.render.chunk.passes.BlockRenderPass;
+import me.jellysquid.mods.sodium.client.render.chunk.passes.BlockRenderPassManager;
 import me.jellysquid.mods.sodium.client.render.chunk.region.RenderRegion;
 import me.jellysquid.mods.sodium.client.render.chunk.shader.ChunkShaderBindingPoints;
-import me.jellysquid.mods.sodium.client.render.chunk.shader.ChunkShaderInterface;
+import me.jellysquid.mods.sodium.client.render.chunk.shader.ShaderPipeline;
 import me.jellysquid.mods.sodium.client.resource.ResourceResolver;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.Matrix4f;
 import org.lwjgl.system.MemoryStack;
@@ -37,8 +38,8 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
 
     private final GlMutableBuffer chunkInfoBuffer;
 
-    public RegionChunkRenderer(RenderDevice device, ResourceResolver resourceResolver, ChunkVertexType vertexType) {
-        super(device, resourceResolver, vertexType);
+    public RegionChunkRenderer(RenderDevice device, ResourceResolver resourceResolver, ChunkVertexType vertexType, BlockRenderPassManager renderPassManager) {
+        super(device, resourceResolver, vertexType, renderPassManager);
 
         this.vertexAttributeBindings = new GlVertexAttributeBinding[] {
                 new GlVertexAttributeBinding(ChunkShaderBindingPoints.ATTRIBUTE_POSITION_ID,
@@ -66,7 +67,7 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
         }
     }
 
-    private static ByteBuffer createChunkInfoBuffer(MemoryStack stack) {
+    private ByteBuffer createChunkInfoBuffer(MemoryStack stack) {
         int stride = 4 * 4;
         ByteBuffer data = stack.malloc(RenderRegion.REGION_SIZE * stride);
 
@@ -75,9 +76,9 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
                 for (int z = 0; z < RenderRegion.REGION_LENGTH; z++) {
                     int i = RenderRegion.getChunkIndex(x, y, z) * stride;
 
-                    data.putFloat(i + 0, x * 16.0f);
-                    data.putFloat(i + 4, y * 16.0f);
-                    data.putFloat(i + 8, z * 16.0f);
+                    data.putFloat(i + 0, (x * 16.0f) + this.vertexType.getModelOffset());
+                    data.putFloat(i + 4, (y * 16.0f) + this.vertexType.getModelOffset());
+                    data.putFloat(i + 8, (z * 16.0f) + this.vertexType.getModelOffset());
                 }
             }
         }
@@ -89,12 +90,12 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
     public void render(MatrixStack matrixStack, CommandList commandList,
                        ChunkRenderList list, BlockRenderPass pass,
                        ChunkCameraContext camera) {
-        super.begin(pass);
+        ChunkRenderInfo info = new ChunkRenderInfo();
+        info.drawParamsBuffer = this.chunkInfoBuffer;
+        info.time = MinecraftClient.getInstance().world.getTime() + MinecraftClient.getInstance().getTickDelta();
 
-        ChunkShaderInterface shader = this.activeProgram.getInterface();
-
-        shader.setProjectionMatrix(RenderSystem.getProjectionMatrix());
-        shader.setDrawUniforms(this.chunkInfoBuffer);
+        ShaderPipeline<ChunkRenderInfo> pipeline = this.pipelines.get(pass);
+        pipeline.bind(info);
 
         for (Map.Entry<RenderRegion, List<RenderSection>> entry : sortedRegions(list, pass.isTranslucent())) {
             RenderRegion region = entry.getKey();
@@ -104,13 +105,15 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
                 continue;
             }
 
-            this.setModelMatrixUniforms(shader, matrixStack, region, camera);
+            info.modelViewMatrix = createModelViewMatrix(matrixStack, region, camera);
+
+            pipeline.upload(info);
 
             GlTessellation tessellation = this.createTessellationForRegion(commandList, region.getArenas(), pass);
-            executeDrawBatches(commandList, tessellation);
+            executeDrawBatches(commandList, tessellation, info);
         }
-        
-        super.end();
+
+        pipeline.unbind();
     }
 
     private boolean buildDrawBatches(List<RenderSection> sections, BlockRenderPass pass, ChunkCameraContext camera) {
@@ -181,7 +184,7 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
         return tessellation;
     }
 
-    private void executeDrawBatches(CommandList commandList, GlTessellation tessellation) {
+    private void executeDrawBatches(CommandList commandList, GlTessellation tessellation, ChunkRenderInfo info) {
         for (int i = 0; i < this.batches.length; i++) {
             MultiDrawBatch batch = this.batches[i];
 
@@ -191,7 +194,7 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
         }
     }
 
-    private void setModelMatrixUniforms(ChunkShaderInterface shader, MatrixStack matrixStack, RenderRegion region, ChunkCameraContext camera) {
+    private Matrix4f createModelViewMatrix(MatrixStack matrixStack, RenderRegion region, ChunkCameraContext camera) {
         float x = getCameraTranslation(region.getOriginX(), camera.blockX, camera.deltaX);
         float y = getCameraTranslation(region.getOriginY(), camera.blockY, camera.deltaY);
         float z = getCameraTranslation(region.getOriginZ(), camera.blockZ, camera.deltaZ);
@@ -201,7 +204,7 @@ public class RegionChunkRenderer extends ShaderChunkRenderer {
                 .copy();
         matrix.multiplyByTranslation(x, y, z);
 
-        shader.setModelViewMatrix(matrix);
+        return matrix;
     }
 
     private void addDrawCall(ElementRange part, long baseIndexPointer, int baseVertexIndex) {

@@ -1,11 +1,14 @@
 package me.jellysquid.mods.sodium.client.gl.shader.uniform;
 
-public abstract class GlUniform<T> {
+public abstract class GlUniform {
     protected final int index;
 
     protected GlUniform(int index) {
         this.index = index;
     }
 
-    public abstract void set(T value);
+    public <T extends GlUniform> T asType(UniformType<T> type) {
+        return type.getType()
+                .cast(this);
+    }
 }

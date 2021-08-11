@@ -23,6 +23,16 @@ public class ShaderConstants {
         return builder;
     }
 
+    public static ShaderConstants create(Map<String, String> map) {
+        Builder constants = builder();
+
+        for (Map.Entry<String, String> entry : map.entrySet()) {
+            constants.add(entry.getKey(), entry.getValue());
+        }
+
+        return constants.build();
+    }
+
     public Iterable<Map.Entry<String, String>> getEntries() {
         return this.defines.entrySet();
     }

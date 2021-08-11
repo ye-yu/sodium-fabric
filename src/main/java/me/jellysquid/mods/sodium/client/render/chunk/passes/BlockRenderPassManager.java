@@ -1,14 +1,23 @@
 package me.jellysquid.mods.sodium.client.render.chunk.passes;
 
 import com.google.gson.Gson;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 import me.jellysquid.mods.sodium.client.SodiumClientMod;
+import me.jellysquid.mods.sodium.client.gl.sampler.SamplerType;
 import me.jellysquid.mods.sodium.client.gl.shader.ShaderConstants;
+import me.jellysquid.mods.sodium.client.gl.shader.ShaderType;
+import me.jellysquid.mods.sodium.client.gl.shader.uniform.UniformType;
+import me.jellysquid.mods.sodium.client.render.chunk.shader.BufferDescription;
+import me.jellysquid.mods.sodium.client.render.chunk.shader.SamplerDescription;
+import me.jellysquid.mods.sodium.client.render.chunk.shader.ShaderPipelineDescription;
+import me.jellysquid.mods.sodium.client.render.chunk.shader.UniformDescription;
 import me.jellysquid.mods.sodium.client.resource.ResourceProvider;
 import me.jellysquid.mods.sodium.client.resource.ResourceResolver;
-import me.jellysquid.mods.sodium.client.resource.shader.json.BlockMapJson;
-import me.jellysquid.mods.sodium.client.resource.shader.json.RenderPassJson;
-import me.jellysquid.mods.sodium.client.resource.shader.json.ShaderJson;
+import me.jellysquid.mods.sodium.client.resource.json.BlockMapJson;
+import me.jellysquid.mods.sodium.client.resource.json.ProgramJson;
+import me.jellysquid.mods.sodium.client.resource.json.RenderPassJson;
+import me.jellysquid.mods.sodium.client.resource.json.RenderPassPipelineJson;
 import net.minecraft.block.Block;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.RenderLayers;
@@ -70,7 +79,7 @@ public class BlockRenderPassManager {
      * behavior of vanilla.
      */
     public static BlockRenderPassManager create(ResourceResolver resolver) {
-        RenderPassCache cache = new RenderPassCache(resolver);
+        ShaderCache cache = new ShaderCache(resolver);
 
         BlockRenderPass cutoutMipped = cache.get(new Identifier("sodium", "block_cutout_mipped"));
         BlockRenderPass cutout = cache.get(new Identifier("sodium", "block_cutout"));
@@ -126,7 +135,7 @@ public class BlockRenderPassManager {
         return new BlockRenderPassManager(blocks, fluids, solid);
     }
 
-    private static void tryLoadMappings(ResourceProvider loader, RenderPassCache cache, Map<Block, BlockRenderPass> blocks, Map<Fluid, BlockRenderPass> fluids) {
+    private static void tryLoadMappings(ResourceProvider loader, ShaderCache cache, Map<Block, BlockRenderPass> blocks, Map<Fluid, BlockRenderPass> fluids) {
         BlockMapJson json = tryLoadBlockMapJson(loader, "maps/block_map.json");
 
         if (json == null) {
@@ -171,18 +180,6 @@ public class BlockRenderPassManager {
 
     private static final Gson GSON = new Gson();
 
-    private static RenderPassShader createShaderInfo(ShaderJson json) {
-        ShaderConstants.Builder constants = ShaderConstants.builder();
-
-        if (json.getConstants() != null) {
-            for (Map.Entry<String, String> entry : json.getConstants().entrySet()) {
-                constants.add(entry.getKey(), entry.getValue());
-            }
-        }
-
-        return new RenderPassShader(new Identifier(json.getSource()), constants.build());
-    }
-
     private static RenderLayer getLayerByName(String name) {
         return switch (name) {
             case "minecraft:solid" -> RenderLayer.getSolid();
@@ -194,16 +191,17 @@ public class BlockRenderPassManager {
         };
     }
 
-    private static class RenderPassCache {
-        private final Map<Identifier, BlockRenderPass> cache = new Reference2ObjectOpenHashMap<>();
+    private static class ShaderCache {
+        private final Map<Identifier, BlockRenderPass> pipelineCache = new Object2ObjectOpenHashMap<>();
+
         private final ResourceResolver resolver;
 
-        private RenderPassCache(ResourceResolver resolver) {
+        private ShaderCache(ResourceResolver resolver) {
             this.resolver = resolver;
         }
 
         public BlockRenderPass get(Identifier id) {
-            return this.cache.computeIfAbsent(id, this::load);
+            return this.pipelineCache.computeIfAbsent(id, this::load);
         }
 
         private BlockRenderPass load(Identifier name) {
@@ -216,9 +214,49 @@ public class BlockRenderPassManager {
                 throw new RuntimeException("Failed to read render pass specification", e);
             }
 
-            return new BlockRenderPass(getLayerByName(json.getLayer()), json.isTranslucent(),
-                    createShaderInfo(json.getShader("vertex")),
-                    createShaderInfo(json.getShader("fragment")));
+            return createBlockRenderPass(json);
+        }
+
+        private BlockRenderPass createBlockRenderPass(RenderPassJson json) {
+            return new BlockRenderPass(getLayerByName(json.getLayer()), json.isTranslucent(), createPipelineDescription(json.getShader()));
+        }
+
+        private ShaderPipelineDescription createPipelineDescription(RenderPassPipelineJson pipelineJson) {
+            ProgramJson programJson;
+            Identifier programName = new Identifier(pipelineJson.getSource() + ".json");
+
+            try (InputStream in = this.resolver.open(programName)) {
+                programJson = GSON.fromJson(new InputStreamReader(in), ProgramJson.class);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to read program specification", e);
+            }
+
+            return new ShaderPipelineDescription(new Identifier("unknown"),
+                    programJson.getShaders()
+                            .entrySet()
+                            .stream()
+                            .collect(Collectors.toMap(
+                                    entry -> ShaderType.byName(entry.getKey()),
+                                    entry -> new Identifier(entry.getValue())
+                            )),
+                    programJson.getUniforms()
+                            .stream()
+                            .map(uniformJson -> new UniformDescription(
+                                    uniformJson.getName(),
+                                    UniformType.byName(uniformJson.getType()),
+                                    new Identifier(uniformJson.getBinding())
+                            ))
+                            .collect(Collectors.toList()),
+                    programJson.getSamplers()
+                            .stream()
+                            .map(samplerJson -> new SamplerDescription(
+                                    samplerJson.getName(),
+                                    SamplerType.byName(samplerJson.getType()),
+                                    new Identifier(samplerJson.getTexture())
+                            ))
+                            .collect(Collectors.toList()),
+                    ShaderConstants.create(pipelineJson.getConstants())
+            );
         }
     }
 }

@@ -1,0 +1,23 @@
+{
+  "shaders": {
+    "vertex": "sodium:shaders/block_layer_generic",
+    "fragment": "sodium:shaders/block_layer_generic"
+  },
+  "uniforms": [
+    { "name": "u_FogColor", "type": "vec4", "binding": "minecraft:fog_color" },
+    { "name": "u_FogStart", "type": "float", "binding": "minecraft:fog_start" },
+    { "name": "u_FogEnd", "type": "float", "binding": "minecraft:fog_end" },
+
+    { "name": "u_ProjectionMatrix", "type": "mat4", "binding": "builtin:projection_matrix" },
+    { "name": "u_ModelViewMatrix", "type": "mat4", "binding": "builtin:model_view_matrix" },
+
+    { "name": "u_ModelScale", "type": "float", "binding": "sodium:position_scale" },
+    { "name": "u_TextureScale", "type": "float", "binding": "sodium:texture_scale" },
+
+    { "name": "ubo_DrawParameters", "type": "buffer", "binding": "sodium:chunk_draw_params" }
+  ],
+  "samplers": [
+    { "name": "u_BlockTex", "type": "sampler2D", "texture": "minecraft:block_tex" },
+    { "name": "u_LightTex", "type": "sampler2D", "texture": "minecraft:light_tex" }
+  ]
+}

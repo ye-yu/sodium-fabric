@@ -1,8 +1,6 @@
-package me.jellysquid.mods.sodium.client.resource.shader.json;
+package me.jellysquid.mods.sodium.client.resource.json;
 
 import com.google.gson.annotations.SerializedName;
-
-import java.util.Map;
 
 public class RenderPassJson {
     @SerializedName("name")
@@ -14,8 +12,8 @@ public class RenderPassJson {
     @SerializedName("translucent")
     private boolean translucent;
 
-    @SerializedName("shaders")
-    private Map<String, ShaderJson> shaders;
+    @SerializedName("shader")
+    private RenderPassPipelineJson shader;
 
     public String getLayer() {
         return this.layer;
@@ -29,7 +27,7 @@ public class RenderPassJson {
         return this.translucent;
     }
 
-    public ShaderJson getShader(String name) {
-        return this.shaders.get(name);
+    public RenderPassPipelineJson getShader() {
+        return this.shader;
     }
 }

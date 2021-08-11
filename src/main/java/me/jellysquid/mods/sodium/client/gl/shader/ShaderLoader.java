@@ -19,8 +19,13 @@ public class ShaderLoader {
      * @return An OpenGL shader object compiled with the given user defines
      */
     public static GlShader loadShader(ResourceResolver resolver, ShaderType type, Identifier name, ShaderConstants constants) {
-        String source = getShaderSource(resolver, name);
+        String source = getShaderSource(resolver, getShaderIdentifier(type, name));
+
         return new GlShader(type, name, ShaderParser.parseShader(resolver, source, constants));
+    }
+
+    private static Identifier getShaderIdentifier(ShaderType type, Identifier name) {
+        return new Identifier(name.getNamespace(), name.getPath() + type.extension);
     }
 
     public static String getShaderSource(ResourceResolver resolver, Identifier name) {

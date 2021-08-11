@@ -2,17 +2,12 @@ package me.jellysquid.mods.sodium.client.gl.shader.uniform;
 
 import org.lwjgl.opengl.GL30C;
 
-public class GlUniformFloat extends GlUniform<Float> {
+public class GlUniformFloat extends GlUniform {
     public GlUniformFloat(int index) {
         super(index);
     }
 
-    @Override
-    public void set(Float value) {
-        this.setFloat(value);
-    }
-
-    public void setFloat(float value) {
+    public void set(float value) {
         GL30C.glUniform1f(this.index, value);
     }
 }

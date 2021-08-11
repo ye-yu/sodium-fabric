@@ -1,4 +1,4 @@
-package me.jellysquid.mods.sodium.client.resource.shader.json;
+package me.jellysquid.mods.sodium.client.resource.json;
 
 import com.google.gson.annotations.SerializedName;
 

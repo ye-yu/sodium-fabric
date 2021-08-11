@@ -17,8 +17,6 @@ uniform mat4 u_ProjectionMatrix;
 uniform mat4 u_ModelViewMatrix;
 
 uniform float u_ModelScale;
-uniform float u_ModelOffset;
-
 uniform float u_TextureScale;
 
 layout(std140) uniform ubo_DrawParameters {
@@ -29,19 +27,13 @@ out vec4 v_Color;
 out vec2 v_TexCoord;
 out vec2 v_LightCoord;
 
-#ifdef USE_FOG
 out float v_FragDistance;
-#endif
 
 void main() {
-    vec3 vertexPosition = a_Pos.xyz * u_ModelScale + u_ModelOffset;
-    vec3 chunkOffset = Chunks[int(a_Pos.w)].Offset.xyz; // AMD drivers also need this manually inlined
+    vec3 vertexPosition = (a_Pos.xyz * u_ModelScale) + Chunks[int(a_Pos.w)].Offset.xyz; // AMD drivers also need this manually inlined
+    vec4 pos = u_ModelViewMatrix * vec4(vertexPosition, 1.0);
 
-    vec4 pos = u_ModelViewMatrix * vec4(chunkOffset + vertexPosition, 1.0);
-
-#ifdef USE_FOG
     v_FragDistance = length(pos);
-#endif
 
     // Transform the vertex position into model-view-projection space
     gl_Position = u_ProjectionMatrix * pos;

@@ -3,9 +3,6 @@ package me.jellysquid.mods.sodium.client.gl.shader;
 import com.mojang.blaze3d.platform.GlStateManager;
 import me.jellysquid.mods.sodium.client.gl.GlObject;
 import me.jellysquid.mods.sodium.client.gl.shader.uniform.GlUniform;
-import me.jellysquid.mods.sodium.client.gl.shader.uniform.GlUniformBlock;
-import me.jellysquid.mods.sodium.client.render.chunk.shader.ChunkShaderInterface;
-import me.jellysquid.mods.sodium.client.render.chunk.shader.ShaderBindingContext;
 import net.minecraft.util.Identifier;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -13,24 +10,16 @@ import org.lwjgl.opengl.GL20C;
 import org.lwjgl.opengl.GL30C;
 import org.lwjgl.opengl.GL32C;
 
-import java.util.function.Function;
 import java.util.function.IntFunction;
 
 /**
  * An OpenGL shader program.
  */
-public class GlProgram<T> extends GlObject implements ShaderBindingContext {
+public class GlProgram extends GlObject {
     private static final Logger LOGGER = LogManager.getLogger(GlProgram.class);
 
-    private final T shaderInterface;
-
-    protected GlProgram(int program, Function<ShaderBindingContext, T> interfaceFactory) {
+    protected GlProgram(int program) {
         this.setHandle(program);
-        this.shaderInterface = interfaceFactory.apply(this);
-    }
-
-    public T getInterface() {
-        return this.shaderInterface;
     }
 
     public static Builder builder(Identifier identifier) {
@@ -51,8 +40,7 @@ public class GlProgram<T> extends GlObject implements ShaderBindingContext {
         this.invalidateHandle();
     }
 
-    @Override
-    public <U extends GlUniform<?>> U bindUniform(String name, IntFunction<U> factory) {
+    public <U extends GlUniform> U bindUniform(String name, IntFunction<U> factory) {
         int index = GL20C.glGetUniformLocation(this.handle(), name);
 
         if (index < 0) {
@@ -62,17 +50,24 @@ public class GlProgram<T> extends GlObject implements ShaderBindingContext {
         return factory.apply(index);
     }
 
-    @Override
-    public GlUniformBlock bindUniformBlock(String name, int bindingPoint) {
+    public int getUniformIndex(String name) {
+        int index = GL20C.glGetUniformLocation(this.handle(), name);
+
+        if (index < 0) {
+            throw new NullPointerException("No uniform exists with name: " + name);
+        }
+
+        return index;
+    }
+
+    public int getBufferBlockIndex(String name) {
         int index = GL32C.glGetUniformBlockIndex(this.handle(), name);
 
         if (index < 0) {
             throw new NullPointerException("No uniform block exists with name: " + name);
         }
 
-        GL32C.glUniformBlockBinding(this.handle(), index, bindingPoint);
-
-        return new GlUniformBlock(bindingPoint);
+        return index;
     }
 
     public static class Builder {
@@ -99,7 +94,7 @@ public class GlProgram<T> extends GlObject implements ShaderBindingContext {
          * @param <U> The interface type for the shader program
          * @return An instantiated shader container as provided by the factory
          */
-        public <U> GlProgram<U> link(Function<ShaderBindingContext, U> factory) {
+        public GlProgram link() {
             GL20C.glLinkProgram(this.program);
 
             String log = GL20C.glGetProgramInfoLog(this.program);
@@ -114,7 +109,7 @@ public class GlProgram<T> extends GlObject implements ShaderBindingContext {
                 throw new RuntimeException("Shader program linking failed, see log for details");
             }
 
-            return new GlProgram<>(this.program, factory);
+            return new GlProgram(this.program);
         }
 
         public Builder bindAttribute(String name, ShaderBindingPoint binding) {
