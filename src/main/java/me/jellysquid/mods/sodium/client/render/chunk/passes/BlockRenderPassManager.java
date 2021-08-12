@@ -206,7 +206,7 @@ public class BlockRenderPassManager {
 
         private BlockRenderPass load(Identifier name) {
             RenderPassJson json;
-            Identifier path = new Identifier(name.getNamespace(), "shaders/pass/" + name.getPath() + ".json");
+            Identifier path = new Identifier(name.getNamespace(), "shaders/passes/" + name.getPath() + ".json");
 
             try (InputStream in = this.resolver.open(path)) {
                 json = GSON.fromJson(new InputStreamReader(in), RenderPassJson.class);
