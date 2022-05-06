@@ -26,13 +26,14 @@ import net.minecraft.client.texture.Sprite;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.random.AbstractRandom;
 import net.minecraft.world.BlockRenderView;
 
 import java.util.List;
 import java.util.Random;
 
 public class BlockRenderer {
-    private final Random random = new XoRoShiRoRandom();
+    private final AbstractRandom random = new XoRoShiRoRandom();
 
     private final BlockColorsExtended blockColors;
     private final BlockOcclusionCache occlusionCache;

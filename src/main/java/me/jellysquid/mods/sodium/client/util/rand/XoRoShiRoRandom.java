@@ -1,12 +1,22 @@
 package me.jellysquid.mods.sodium.client.util.rand;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Charsets;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
+import com.google.common.primitives.Longs;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.random.AbstractRandom;
+
+import java.io.Serial;
 import java.util.Random;
 
 // XoRoShiRo128** implementation from DSI Utilities, adopted in a minimal implementation to not
 // import Apache Commons.
 //
 // http://xoshiro.di.unimi.it/
-public class XoRoShiRoRandom extends Random {
+public class XoRoShiRoRandom extends Random implements AbstractRandom {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private SplitMixRandom mixer;
@@ -114,6 +124,41 @@ public class XoRoShiRoRandom extends Random {
             }
         }
     }
+
+
+
+    @Override
+    public AbstractRandom derive() {
+        return new XoRoShiRoRandom(this.nextLong());
+    }
+
+    @Override
+    public net.minecraft.util.math.random.RandomDeriver createRandomDeriver() {
+        return new RandomDeriver(this.nextLong());
+    }
+
+    public record RandomDeriver(long seed) implements net.minecraft.util.math.random.RandomDeriver {
+            @SuppressWarnings("UnstableApiUsage")
+            private static final HashFunction MD5_HASHER = Hashing.md5();
+
+        public AbstractRandom createRandom(int x, int y, int z) {
+                long l = MathHelper.hashCode(x, y, z);
+                long m = l ^ this.seed;
+                return new XoRoShiRoRandom(m);
+            }
+
+            public AbstractRandom createRandom(String string) {
+                byte[] bs = MD5_HASHER.hashString(string, Charsets.UTF_8).asBytes();
+                long l = Longs.fromBytes(bs[0], bs[1], bs[2], bs[3], bs[4], bs[5], bs[6], bs[7]);
+                long m = Longs.fromBytes(bs[8], bs[9], bs[10], bs[11], bs[12], bs[13], bs[14], bs[15]) ^ l;
+                return new XoRoShiRoRandom(m);
+            }
+
+            @VisibleForTesting
+            public void addDebugInfo(StringBuilder info) {
+                info.append("seed: ").append(this.seed);
+            }
+        }
 
     @Override
     public void setSeed(final long seed) {

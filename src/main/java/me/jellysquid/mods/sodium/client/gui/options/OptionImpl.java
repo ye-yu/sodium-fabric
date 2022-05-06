@@ -157,14 +157,6 @@ public class OptionImpl<S, T> implements Option<T> {
         }
 
 
-        public Builder<S, T> setBinding(OptionBinding<S, T> binding) {
-            Validate.notNull(binding, "Argument must not be null");
-
-            this.binding = binding;
-
-            return this;
-        }
-
         public Builder<S, T> setControl(Function<OptionImpl<S, T>, Control<T>> control) {
             Validate.notNull(control, "Argument must not be null");
 
